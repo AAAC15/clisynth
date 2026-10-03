@@ -17,6 +17,9 @@ char audioCommand[1024];
 float chromaticScale[256] = {0.0f};
 // terminal de backup para q funque cuando volvamos del raw mode
 struct termios backupTerminal;
+// factor de octava, por defecto 1 para central
+float octaveFactor = 1.0f;
+float gainFactor = 1.0f;
 
 // raw mode
 void initRawMode(){
@@ -84,7 +87,9 @@ int main(){
 
     printf("\033[2J\033[H"); // secuencia ansi para limpiar terminal y resetear cursor
     printf("    CliSynth: Interactive terminal synth      \n");
-    printf("Top letter: Note | Under letter: Execution key\n\n");
+    printf("Top letter: Note | Under letter: Execution key\n");
+    printf("Octave Up: + | Octave Down -\n");
+    printf("Active Overdrive: Z | Kill Overdrive: X\n\n");
     printf("┌──┬──┬┬──┬─┬──┬──┬┬──┬┬──┬─┬───┐\n");
     printf("│  │C#││D#│ │  │F#││G#││A#│ │   │\n");
     printf("│  │W ││E │ │  │T ││Y ││U │ │   │\n");
@@ -113,8 +118,28 @@ int main(){
                 break; 
             }
             
+            // control de octava
+            // si tocan -, bajamos uno
+            if(pressedKey == '-' && octaveFactor >= 0.125f){
+                octaveFactor *= 0.5f;
+            }
+            // si es +, subimos uno
+            if (pressedKey =='+' && octaveFactor <= 8.0f){
+                octaveFactor *= 2.0f;
+            }
+
+            // control de overdrive
+            // si apretan z lo activamos
+            if(pressedKey == 'z'){
+                gainFactor = 6.0f;
+            }
+            // si apretan x lo desactivamos
+            if(pressedKey == 'x'){
+                gainFactor = 1.0f;
+            }
+
             // definimos a baseHz como el valor del indice d chromaticScale correspondiente al codigo ascii de la tecla
-            baseHz = chromaticScale[(unsigned char)pressedKey];
+            baseHz = chromaticScale[(unsigned char)pressedKey] * octaveFactor;
             
             // si es mayor a 0 ponemos a activeDecay en 40
             if (baseHz > 0.0f) {
@@ -143,7 +168,7 @@ int main(){
                 float wave = sinf(phase); // calculamos el seno flotante de la fase
                 
                 // un poco de gain
-                float gain = 6.0f;
+                float gain = gainFactor;
                 wave = wave * gain;
                 if (wave > 1.0f)  wave = 1.0f;
                 if (wave < -1.0f) wave = -1.0f;
